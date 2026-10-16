@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Potential Landscapes 3D</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #151a21; --card: #1b222c; --line: #2a323d;
+    --text: #e6edf3; --muted: #8b949e; --pos: #e5534b; --neg: #4b8fe5; --zero: #9aa4ae;
+    --accent: #f0b429; --k: #3fb950; --u: #a371f7; --e: #e6edf3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 14px 20px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { background: transparent; color: var(--muted); border: 0; padding: 6px 14px; cursor: pointer; font: inherit; }
+  .seg button.on { background: #2a323d; color: var(--text); }
+  main { flex: 1; display: flex; min-height: 0; }
+  #view { flex: 1; position: relative; min-width: 0; overflow: hidden; }
+  #view canvas { display: block; touch-action: none; }
+  .hud { position: absolute; left: 12px; pointer-events: none; font-size: 12.5px; color: var(--muted);
+    background: rgba(14,17,22,.72); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  #hint { top: 12px; max-width: calc(100% - 24px); }
+  #status { bottom: 12px; color: var(--text); }
+  #status b { color: var(--accent); font-weight: 600; }
+  #panel { width: 390px; flex: none; overflow-y: auto; border-left: 1px solid var(--line); background: var(--panel); padding: 6px 16px 28px; }
+  #panel section { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  #panel section:last-child { border-bottom: 0; }
+  #panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  #panel h2 .hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  select { width: 100%; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; font: inherit; }
+  .ctl { margin: 8px 0 10px; }
+  .ctl-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .ctl-top output { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+  .ctl-label { color: var(--muted); }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin: 4px 0 0; }
+  .btns { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  button.b { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  button.b:hover { border-color: #3d4752; }
+  button.chip { font-size: 12px; padding: 3px 9px; }
+  .math { font-size: 14px; }
+  .math .katex-display { margin: 6px 0; text-align: left; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; }
+  .math .katex { font-size: 1.06em; }
+  .math .katex-display { scrollbar-width: thin; }
+  .math .katex-display > .katex { text-align: left; }
+  .math .row { padding: 2px 0; }
+  .math .note { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .bar { display: grid; grid-template-columns: 22px 1fr 92px; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+  .bar .bl { font-weight: 700; }
+  .track { position: relative; height: 14px; background: #0d1117; border-radius: 4px; }
+  .track i { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); }
+  .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+  .bv { text-align: right; font-variant-numeric: tabular-nums; }
+  .notice { background: #1d2430; border: 1px solid #2f3a48 !important; border-left: 3px solid var(--accent) !important;
+    border-radius: 8px; padding: 10px 12px !important; margin: 12px 0; font-size: 13.5px; }
+  .chk { display: flex; align-items: center; gap: 8px; margin: 4px 0; color: var(--muted); cursor: pointer; }
+  .help { color: var(--muted); font-size: 13px; }
+  .help p { margin: 6px 0; }
+  .help b { color: var(--text); font-weight: 600; }
+  .lbl { pointer-events: none; font-size: 12px; color: var(--text); white-space: nowrap; text-shadow: 0 1px 3px #000, 0 0 2px #000; }
+  .lbl.title { font-size: 13.5px; text-align: center; line-height: 1.3; }
+  .lbl.title small { color: var(--muted); font-size: 11.5px; }
+  .lbl.val { background: rgba(14,17,22,.8); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-variant-numeric: tabular-nums; }
+  .pos { color: var(--pos); } .neg { color: var(--neg); }
+  @media (max-width: 600px) { #hint { display: none; } }
+  @media (max-width: 900px) {
+    html, body { height: auto; }
+    main { flex-direction: column; }
+    #view { height: 62vh; flex: none; }
+    #panel { width: auto; border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Potential vs. Potential Energy: 3D landscapes</h1>
+  <div class="seg" id="modeSeg">
+    <button data-mode="electric" class="on">Electric</button>
+    <button data-mode="gravity">Gravity</button>
+  </div>
+  <span class="sub" id="headerSub"></span>
+</header>
+<main>
+  <div id="view">
+    <div class="hud" id="hint">Drag a <b>source</b> to move it · <b>Click</b> either landscape to drop the test object · drag empty space to orbit, scroll to zoom</div>
+    <div class="hud" id="status"></div>
+  </div>
+  <aside id="panel">
+    <section>
+      <h2>Scenario</h2>
+      <select id="scenario"></select>
+      <div class="btns" id="presets"></div>
+    </section>
+    <section>
+      <h2>Sources <span class="hint">(they create the field)</span></h2>
+      <div id="srcCtl"></div>
+    </section>
+    <section>
+      <h2>Test object <span class="hint">(it feels the field)</span></h2>
+      <div id="testCtl"></div>
+      <div class="btns">
+        <button class="b" id="play">Pause</button>
+        <button class="b" id="reset">Drop again</button>
+      </div>
+    </section>
+    <section>
+      <h2>Live math <span class="hint">at the test object</span></h2>
+      <div id="math" class="math"></div>
+    </section>
+    <section>
+      <h2>Energy of the test object</h2>
+      <div id="bars"></div>
+    </section>
+    <section class="notice" id="notice"></section>
+    <section>
+      <h2>Display</h2>
+      <label class="chk"><input type="checkbox" id="optContours" checked> equipotential contour lines</label>
+      <label class="chk"><input type="checkbox" id="optArrows" checked> arrows: field (left) and force (right)</label>
+      <label class="chk"><input type="checkbox" id="optTrail" checked> trail</label>
+    </section>
+    <section class="help">
+      <h2>How to read this</h2>
+      <p><b>Controls:</b> drag a source sphere to move it; click (tap) either landscape to drop the test object there; drag empty space to orbit; scroll (pinch) to zoom.</p>
+      <p><b>Left landscape:</b> height = the <b>potential</b> (V or φ) at each point. The sources alone set it. Nothing you do to the test object changes it.</p>
+      <p><b>Right landscape:</b> height = the <b>potential energy</b> U = qV (or mφ) that <i>this</i> test object would have at each point. It is the left landscape multiplied by q, so it stretches, flattens and even flips as you change q.</p>
+      <p>The test object rolls on the <b>right</b> landscape, because the force is the downhill slope of U: <b>F = −∇U</b>. The cone on the left is a probe that reads the potential at the same spot.</p>
+      <p>The flat outline under each landscape is the zero reference (V = 0, i.e. far away). Heights are compressed near the sources so the peaks stay on screen.</p>
+    </section>
+  </aside>
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ============================================================================
+// Physics constants (SI)
+// ============================================================================
+const k = 8.988e9, G = 6.674e-11, ME = 5.972e24, RE = 6.371e6;
+
+// Units and slider ranges for each kind of physics. A scenario can override any field.
+const MODES = {
+  electric: {
+    potSym: 'V', potTex: 'V', potName: 'electric potential', potUnit: 'V', potTexUnit: '\\text{V}', potDiv: 1,
+    srcSym: 'Q', srcUnit: 'nC', srcSI: 1e-9, srcMin: -20, srcMax: 20, srcStep: 1, coupling: k,
+    testSym: 'q', testTex: 'q', testName: 'test charge q', testUnit: 'nC', testTexUnit: '\\text{nC}', testSI: 1e-9,
+    testMin: -5, testMax: 5, testStep: 0.5, testDefault: 2,
+    inertia: { name: 'bead mass m (inertia)', unit: 'mg', SI: 1e-6, min: 5, max: 100, step: 5, def: 20 },
+    energyUnit: 'μJ', energyTex: '\\mu\\text{J}', energyDiv: 1e-6,
+    lenUnit: 'cm', lenDiv: 0.01,
+    speedUnit: 'cm/s', speedSI: 0.01, speedMax: 60, speedStep: 2,
+    warp: { def: 1, min: 0.1, max: 3, step: 0.1 }, maxDt: 5e-4,
+    timeUnit: 's', timeDiv: 1,
+  },
+  gravity: {
+    potSym: 'φ', potTex: '\\varphi', potName: 'gravitational potential', potUnit: 'MJ/kg', potTexUnit: '\\text{MJ/kg}', potDiv: 1e6,
+    srcSym: 'M', srcUnit: 'M⊕', srcSI: ME, srcMin: 0.1, srcMax: 3, srcStep: 0.05, coupling: -G,
+    testSym: 'm', testTex: 'm', testName: 'test mass m', testUnit: 'kg', testTexUnit: '\\text{kg}', testSI: 1,
+    testMin: 100, testMax: 2000, testStep: 100, testDefault: 1000,
+    inertia: null,                                   // the inertia IS the test mass
+    energyUnit: 'GJ', energyTex: '\\text{GJ}', energyDiv: 1e9,
+    lenUnit: 'R⊕', lenDiv: RE,
+    speedUnit: 'km/s', speedSI: 1000, speedMax: 10, speedStep: 0.25,
+    warp: { def: 2500, min: 200, max: 8000, step: 100 }, maxDt: 20,
+    timeUnit: 'h', timeDiv: 3600,
+  },
+};
+
+const E_POT_REF = k * 10e-9 / 0.04;   // height scale for the point-charge scenes: V 4 cm from a 10 nC bead
+const SCENARIOS = [
+  { mode: 'electric', name: 'Single charge', kind: 'point', L: 0.30, R: 0.02, potRef: E_POT_REF, contour: 250,
+    sources: [{ s: 10, x: 0, y: 0 }], start: { x: 0.10, y: 0.06 }, launch: 0 },
+  { mode: 'electric', name: 'Dipole (+Q and −Q)', kind: 'point', L: 0.30, R: 0.02, potRef: E_POT_REF, contour: 250,
+    sources: [{ s: 10, x: -0.09, y: 0 }, { s: -10, x: 0.09, y: 0 }], start: { x: -0.03, y: 0.10 }, launch: 0 },
+  { mode: 'electric', name: 'Two like charges', kind: 'point', L: 0.30, R: 0.02, potRef: E_POT_REF, contour: 250,
+    sources: [{ s: 10, x: -0.09, y: 0 }, { s: 10, x: 0.09, y: 0 }], start: { x: 0, y: 0.13 }, launch: 0 },
+  { mode: 'electric', name: 'Parallel plates (uniform E)', kind: 'uniform', L: 0.30, potRef: 1000, contour: 100,
+    sources: [{ s: 600 }], start: { x: -0.22, y: 0.22 }, launch: 10,
+    override: { srcSym: 'ΔV', srcUnit: 'V', srcSI: 1, srcMin: -1000, srcMax: 1000, srcStep: 50 } },
+  { mode: 'gravity', name: 'Single planet', kind: 'point', L: 10 * RE, R: RE, potRef: 1.6 * G * ME / RE, contour: 5e6,
+    sources: [{ s: 1, x: 0, y: 0 }], start: { x: 4 * RE, y: 0 }, launch: 3.5 },
+  { mode: 'gravity', name: 'Planet + moon (held in place)', kind: 'point', L: 10 * RE, R: RE, potRef: 1.6 * G * ME / RE, contour: 5e6,
+    sources: [{ s: 1, x: -2 * RE, y: 0 }, { s: 0.25, x: 5 * RE, y: 0 }], start: { x: -2 * RE, y: 4 * RE }, launch: 3.25 },
+  { mode: 'gravity', name: 'Two equal planets', kind: 'point', L: 10 * RE, R: RE, potRef: 1.6 * G * ME / RE, contour: 5e6,
+    sources: [{ s: 1, x: -3 * RE, y: 0 }, { s: 1, x: 3 * RE, y: 0 }], start: { x: 0, y: 6 * RE }, launch: 3.5 },
+  { mode: 'gravity', name: 'Near the ground (uniform g)', kind: 'uniform', L: 100, potRef: 2500, contour: 200,
+    sources: [{ s: 9.81 }], start: { x: -85, y: 60 }, launch: 15,
+    presets: [['Moon', 1.62], ['Mars', 3.71], ['Earth', 9.81], ['Jupiter', 24.8]],
+    override: { srcSym: 'g', srcUnit: 'N/kg', srcSI: 1, srcMin: 1, srcMax: 25, srcStep: 0.01,
+      potUnit: 'J/kg', potTexUnit: '\\text{J/kg}', potDiv: 1, energyUnit: 'kJ', energyTex: '\\text{kJ}', energyDiv: 1e3,
+      lenUnit: 'm', lenDiv: 1, speedUnit: 'm/s', speedSI: 1, speedMax: 40, speedStep: 1,
+      testMin: 1, testMax: 20, testStep: 1, testDefault: 5,
+      warp: { def: 1, min: 0.1, max: 3, step: 0.1 }, maxDt: 5e-3, timeUnit: 's', timeDiv: 1 } },
+];
+
+// ============================================================================
+// State
+// ============================================================================
+let S, U;                       // current scenario (deep-copied, so sources can move) and its merged units
+let test, inertia, launch, warp;
+const P = { x: 0, y: 0, vx: 0, vy: 0, alive: false, t: 0, status: '' };
+let playing = true, needsUpdate = true, energyScale = 1;
+const trail = [];
+
+// ---- the potential (per unit test charge / mass) and its field, in SI ----
+function potAt(x, y) {
+  if (S.kind === 'uniform') {
+    const s = S.sources[0].s * U.srcSI;
+    return S.mode === 'electric' ? s * (y + S.L) / (2 * S.L)   // V = (ΔV/d)·(distance from the bottom plate)
+                                 : s * (y + S.L);              // φ = g·h,  h = height above the ground
+  }
+  let v = 0;
+  for (const src of S.sources) {
+    const r = Math.hypot(x - src.x, y - src.y);
+    const f = r >= S.R ? 1 / r : (3 * S.R * S.R - r * r) / (2 * S.R ** 3);   // uniform ball: finite inside
+    v += U.coupling * src.s * U.srcSI * f;
+  }
+  return v;
+}
+function fieldAt(x, y) {            // E (N/C) or g (N/kg) = −∇(potential)
+  if (S.kind === 'uniform') {
+    const s = S.sources[0].s * U.srcSI;
+    return [0, S.mode === 'electric' ? -s / (2 * S.L) : -s];
+  }
+  let ex = 0, ey = 0;
+  for (const src of S.sources) {
+    const dx = x - src.x, dy = y - src.y, r = Math.hypot(dx, dy) || 1e-30;
+    const c = U.coupling * src.s * U.srcSI * (r >= S.R ? 1 / (r * r * r) : 1 / S.R ** 3);
+    ex += c * dx; ey += c * dy;
+  }
+  return [ex, ey];
+}
+const testSI = () => test * U.testSI;
+const inertiaSI = () => U.inertia ? inertia * U.inertia.SI : test * U.testSI;
+const testMaxSI = () => Math.max(Math.abs(U.testMin), Math.abs(U.testMax)) * U.testSI;
+
+// ============================================================================
+// Three.js scene
+// ============================================================================
+const HALF = 5, HMAX = 3.2, GAP = 6.2, N = 128;
+// Board centres: side by side on wide screens, one behind the other on narrow ones (see resize()).
+const OFF = { V: new THREE.Vector3(-GAP, 0, 0), U: new THREE.Vector3(GAP, 0, 0) };
+let stacked = false;
+
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+view.appendChild(renderer.domElement);
+const labels = new CSS2DRenderer();
+labels.domElement.style.position = 'absolute';
+labels.domElement.style.top = '0';
+labels.domElement.style.pointerEvents = 'none';
+view.appendChild(labels.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0e1116);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 400);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x334455, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(6, 12, 8);
+scene.add(sun);
+
+const softclip = (x) => { const a = 0.75, ax = Math.abs(x); return ax <= a ? x : Math.sign(x) * (a + (1 - a) * Math.tanh((ax - a) / (1 - a))); };
+const colorOf = (n) => Math.sign(n) * Math.pow(Math.min(1, Math.abs(n)), 0.6);
+const heightV = (x, y) => HMAX * softclip(potAt(x, y) / S.potRef);
+const heightU = (x, y) => HMAX * softclip(testSI() * potAt(x, y) / (testMaxSI() * S.potRef));
+const toWorld = (board, x, y, h) => new THREE.Vector3(OFF[board].x + x / S.L * HALF, h, OFF[board].z - y / S.L * HALF);
+const toBoard = (board, p) => [(p.x - OFF[board].x) / HALF * S.L, -(p.z - OFF[board].z) / HALF * S.L];
+
+// ---- the two landscape surfaces ----
+const surfaceShader = {
+  vertexShader: `
+    attribute float aVal; attribute float aRaw;
+    varying float vVal; varying float vRaw; varying vec3 vN;
+    void main() {
+      vVal = aVal; vRaw = aRaw; vN = normalize(mat3(modelMatrix) * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `
+    uniform float uContours; uniform vec3 uLight;
+    varying float vVal; varying float vRaw; varying vec3 vN;
+    vec3 ramp(float t) {                       // diverging blue - white - red
+      vec3 c0 = vec3(0.03, 0.19, 0.42), c1 = vec3(0.26, 0.58, 0.80), c2 = vec3(0.95, 0.95, 0.95),
+           c3 = vec3(0.86, 0.38, 0.30), c4 = vec3(0.45, 0.02, 0.12);
+      t = clamp(t, -1.0, 1.0);
+      if (t < -0.5) return mix(c0, c1, (t + 1.0) * 2.0);
+      if (t < 0.0)  return mix(c1, c2, (t + 0.5) * 2.0);
+      if (t < 0.5)  return mix(c2, c3, t * 2.0);
+      return mix(c3, c4, (t - 0.5) * 2.0);
+    }
+    void main() {
+      vec3 n = normalize(vN);
+      if (!gl_FrontFacing) n = -n;
+      vec3 col = ramp(vVal) * (0.42 + 0.68 * max(dot(n, uLight), 0.0));
+      float w = fwidth(vRaw);
+      float d = abs(fract(vRaw + 0.5) - 0.5);                       // distance to the nearest contour level
+      float line = (1.0 - smoothstep(0.0, 1.4 * w, d)) * (1.0 - smoothstep(0.12, 0.3, w));   // fade where too dense
+      col = mix(col, vec3(0.04), 0.75 * line * uContours);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+};
+
+function makeSurface(board) {
+  const n1 = N + 1, geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(n1 * n1 * 3);
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
+    const idx = j * n1 + i;
+    pos[3 * idx] = (-1 + 2 * i / N) * HALF;
+    pos[3 * idx + 2] = -(-1 + 2 * j / N) * HALF;
+  }
+  const index = [];
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const a = j * n1 + i, b = a + 1, c = a + n1, d = c + 1;
+    index.push(a, b, c, b, d, c);
+  }
+  geo.setIndex(index);
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aVal', new THREE.BufferAttribute(new Float32Array(n1 * n1), 1));
+  geo.setAttribute('aRaw', new THREE.BufferAttribute(new Float32Array(n1 * n1), 1));
+  const mat = new THREE.ShaderMaterial({
+    ...surfaceShader, side: THREE.DoubleSide, extensions: { derivatives: true },
+    uniforms: { uContours: { value: 1 }, uLight: { value: new THREE.Vector3(0.35, 1, 0.45).normalize() } },
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(OFF[board]);
+  scene.add(mesh);
+  // zero-reference outline
+  mesh.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-HALF, 0, -HALF), new THREE.Vector3(HALF, 0, -HALF),
+    new THREE.Vector3(HALF, 0, HALF), new THREE.Vector3(-HALF, 0, HALF)]),
+    new THREE.LineBasicMaterial({ color: 0x55606c, transparent: true, opacity: 0.7 })));
+  return mesh;
+}
+const surf = { V: makeSurface('V'), U: makeSurface('U') };
+
+// ---- arrows (field on the left, force on the right) ----
+const AR = 11;
+function makeArrows() {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(AR * AR * 6 * 3), 3));
+  const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x101010, transparent: true, opacity: 0.85 }));
+  scene.add(l);
+  return l;
+}
+const arrows = { V: makeArrows(), U: makeArrows() };
+
+function updateArrows(board, sign, hfn) {
+  const arr = arrows[board].geometry.attributes.position.array;
+  arr.fill(0);
+  let n = 0;
+  const lenB = 0.36 / HALF * S.L, barbB = 0.14 / HALF * S.L;
+  const put = (x, y) => { const w = toWorld(board, x, y, hfn(x, y) + 0.06); arr[n++] = w.x; arr[n++] = w.y; arr[n++] = w.z; };
+  for (let j = 0; j < AR; j++) for (let i = 0; i < AR; i++) {
+    const x = (-1 + 2 * (i + 0.5) / AR) * S.L * 0.96, y = (-1 + 2 * (j + 0.5) / AR) * S.L * 0.96;
+    if (S.kind === 'point' && S.sources.some(s => Math.hypot(x - s.x, y - s.y) < 1.7 * S.R)) { n += 18; continue; }
+    const [ex, ey] = fieldAt(x, y);
+    const fx = sign * ex, fy = sign * ey, mag = Math.hypot(fx, fy);
+    if (!mag) { n += 18; continue; }
+    const ux = fx / mag, uy = fy / mag;
+    const hx = x + 0.5 * lenB * ux, hy = y + 0.5 * lenB * uy;
+    put(x - 0.5 * lenB * ux, y - 0.5 * lenB * uy); put(hx, hy);
+    for (const a of [0.45, -0.45]) {
+      const c = Math.cos(a), s = Math.sin(a);
+      put(hx, hy); put(hx - barbB * (c * ux - s * uy), hy - barbB * (s * ux + c * uy));
+    }
+  }
+  arrows[board].geometry.attributes.position.needsUpdate = true;
+  arrows[board].geometry.computeBoundingSphere();
+}
+
+// ---- source markers, plates, probe, particle, trail ----
+let srcMarkers = [], plateMeshes = [];
+const sphereGeo = new THREE.SphereGeometry(1, 32, 16);
+function clearMarkers() {
+  for (const m of srcMarkers) { scene.remove(m.V); scene.remove(m.U); m.V.remove(m.label); m.label.element.remove(); }
+  for (const p of plateMeshes) { scene.remove(p); p.children.forEach(c => c.element && c.element.remove()); }
+  srcMarkers = []; plateMeshes = [];
+}
+function sourceColor(s) {
+  if (S.mode === 'gravity') return s < 0.5 ? 0x9aa0a6 : 0x2f8f6b;
+  return s > 0 ? 0xe5534b : s < 0 ? 0x4b8fe5 : 0x9aa4ae;
+}
+function buildMarkers() {
+  clearMarkers();
+  if (S.kind === 'point') {
+    const r = Math.max(S.R / S.L * HALF, 0.28);
+    S.sources.forEach((src, i) => {
+      const mk = (board) => {
+        const m = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ roughness: 0.45, metalness: 0.05 }));
+        m.scale.setScalar(r); m.userData = { index: i, board }; scene.add(m); return m;
+      };
+      const label = new CSS2DObject(Object.assign(document.createElement('div'), { className: 'lbl val' }));
+      label.position.set(-2.6, 1.4, 0);
+      const mV = mk('V'); mV.add(label);
+      srcMarkers.push({ V: mV, U: mk('U'), label, r });
+    });
+  } else {
+    // plates / ground along the board edges y = −L and y = +L
+    const edge = (board, y, color, text) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(2 * HALF, 0.16, 0.3), new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+      m.userData = { board, y };
+      const l = new CSS2DObject(Object.assign(document.createElement('div'), { className: 'lbl', textContent: text }));
+      if (y < 0) l.position.set(0, -0.45, 0.6); else l.position.set(0, 0.55, 0);   // near edge: label in front
+      m.add(l);
+      scene.add(m); plateMeshes.push(m);
+    };
+    for (const b of ['V', 'U']) {
+      if (S.mode === 'electric') { edge(b, -S.L, 0x4b8fe5, ''); edge(b, S.L, 0xe5534b, ''); }
+      else edge(b, -S.L, 0x6b5233, b === 'V' ? 'ground (h = 0)' : '');
+    }
+  }
+}
+function updateMarkers() {
+  for (const m of srcMarkers) {
+    const src = S.sources[m.V.userData.index];
+    for (const b of ['V', 'U']) {
+      const h = (b === 'V' ? heightV : heightU)(src.x, src.y);
+      m[b].position.copy(toWorld(b, src.x, src.y, h + m.r * 0.55));
+      m[b].material.color.setHex(sourceColor(src.s));
+    }
+    const sgn = S.mode === 'electric' && src.s > 0 ? '+' : '';
+    m.label.element.innerHTML = `${U.srcSym} = ${sgn}${pf(src.s, 3)} ${U.srcUnit}`;
+  }
+  for (const p of plateMeshes) {
+    const { board, y } = p.userData, hfn = board === 'V' ? heightV : heightU;
+    p.position.copy(toWorld(board, 0, y, hfn(0, y)));
+    if (S.mode === 'electric') {
+      const dV = S.sources[0].s, top = y > 0, v = top ? dV : 0;
+      const isPos = top ? dV > 0 : dV < 0;           // the higher-potential plate is +
+      p.material.color.setHex(dV === 0 ? 0x9aa4ae : isPos ? 0xe5534b : 0x4b8fe5);
+      p.children[0].element.textContent = board === 'V' ? `${dV === 0 ? '' : isPos ? '+ ' : '− '}plate, V = ${fmt(v, 3)} V` : '';
+    }
+  }
+}
+
+const particle = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ roughness: 0.3, metalness: 0.1 }));
+particle.scale.setScalar(0.24);
+scene.add(particle);
+const probe = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.55, 20), new THREE.MeshStandardMaterial({ color: 0xf0b429, roughness: 0.4 }));
+probe.rotation.x = Math.PI;                 // tip pointing down at the surface
+scene.add(probe);
+const probeLabel = new CSS2DObject(Object.assign(document.createElement('div'), { className: 'lbl val' }));
+probeLabel.position.set(0, -0.95, 0);       // (probe is upside-down, so −y is above it)
+probe.add(probeLabel);
+const particleLabel = new CSS2DObject(Object.assign(document.createElement('div'), { className: 'lbl val' }));
+particleLabel.position.set(0, 2.3, 0);
+particle.add(particleLabel);
+
+const MAXT = 1500;
+const trailLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xf0b429 }));
+trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXT * 3), 3));
+trailLine.frustumCulled = false;
+scene.add(trailLine);
+
+// ---- board titles ----
+function titleLabel(board) {
+  const l = new CSS2DObject(Object.assign(document.createElement('div'), { className: 'lbl title' }));
+  l.position.set(0, HMAX + 1.3, -HALF);
+  surf[board].add(l);
+  return l;
+}
+const titles = { V: titleLabel('V'), U: titleLabel('U') };
+
+// ============================================================================
+// Rebuilding the landscapes when anything about the field or the test charge changes
+// ============================================================================
+function updateLandscapes() {
+  const n1 = N + 1, q = testSI(), qMax = testMaxSI(), sgn = Math.sign(q);
+  const gV = surf.V.geometry, gU = surf.U.geometry;
+  const pV = gV.attributes.position.array, pU = gU.attributes.position.array;
+  const cV = gV.attributes.aVal.array, cU = gU.attributes.aVal.array;
+  const rV = gV.attributes.aRaw.array, rU = gU.attributes.aRaw.array;
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
+    const idx = j * n1 + i, x = (-1 + 2 * i / N) * S.L, y = (-1 + 2 * j / N) * S.L;
+    const p = potAt(x, y), nv = p / S.potRef, nu = q * p / (qMax * S.potRef);
+    pV[3 * idx + 1] = HMAX * softclip(nv); cV[idx] = colorOf(nv); rV[idx] = p / S.contour;
+    pU[3 * idx + 1] = HMAX * softclip(nu); cU[idx] = colorOf(nu); rU[idx] = sgn * p / S.contour;   // same contour shapes
+  }
+  for (const g of [gV, gU]) {
+    g.attributes.position.needsUpdate = g.attributes.aVal.needsUpdate = g.attributes.aRaw.needsUpdate = true;
+    g.computeVertexNormals(); g.computeBoundingSphere(); g.computeBoundingBox();
+  }
+  const showC = document.getElementById('optContours').checked;
+  surf.V.material.uniforms.uContours.value = showC ? 1 : 0;
+  surf.U.material.uniforms.uContours.value = showC && q !== 0 ? 1 : 0;
+  updateArrows('V', 1, heightV);
+  updateArrows('U', sgn, heightU);
+  updateMarkers();
+  particle.material.color.setHex(S.mode === 'gravity' ? 0xf0b429 : q > 0 ? 0xe5534b : q < 0 ? 0x4b8fe5 : 0x9aa4ae);
+  titles.V.element.innerHTML = `${U.potSym}(x, y): ${U.potName}<br><small>set by the sources only: a property of the PLACE</small>`;
+  titles.U.element.innerHTML = `U(x, y) = ${U.testSym}${U.potSym}: potential energy<br><small>of THIS test object: depends on ${U.testSym} = ${S.mode === 'electric' ? pfs(test) : pf(test)} ${U.testUnit}</small>`;
+}
+
+// ============================================================================
+// The test object: placing, launching, integrating
+// ============================================================================
+function place(x, y) {
+  P.x = x; P.y = y; P.t = 0; P.alive = true; P.status = '';
+  const [ex, ey] = fieldAt(x, y), s = Math.sign(testSI()) || 1;
+  let dx = 1, dy = 0;                                  // launch sideways: perpendicular to the force
+  if (S.kind === 'point' && Math.hypot(ex, ey) > 0) {
+    const fx = s * ex, fy = s * ey, m = Math.hypot(fx, fy);
+    dx = fy / m; dy = -fx / m;
+  }
+  const v = launch * U.speedSI;
+  P.vx = v * dx; P.vy = v * dy;
+  trail.length = 0;
+  trail.push([x, y]);
+  energyScale = 0;
+}
+function accel(x, y) {
+  const [ex, ey] = fieldAt(x, y), c = testSI() / inertiaSI();   // a = qE/m  (gravity: a = mg/m = g)
+  return [c * ex, c * ey];
+}
+function checkStop() {
+  if (S.kind === 'point') {
+    const hit = S.sources.find(s => Math.hypot(P.x - s.x, P.y - s.y) < S.R);
+    if (hit) return S.mode === 'gravity' ? 'crashed into the planet' : 'hit the source charge';
+  }
+  if (P.y < -S.L) return S.kind === 'uniform' ? (S.mode === 'gravity' ? 'hit the ground' : 'reached the bottom plate') : 'left the board';
+  if (P.y > S.L) return S.kind === 'uniform' && S.mode === 'electric' ? 'reached the top plate' : 'left the board';
+  if (Math.abs(P.x) > S.L) return 'left the board';
+  return '';
+}
+function simulate(dtReal) {
+  if (!P.alive || !playing) return;
+  const dtTotal = dtReal * warp, n = Math.min(4000, Math.ceil(dtTotal / U.maxDt)), dt = dtTotal / n;
+  let [ax, ay] = accel(P.x, P.y);
+  for (let s = 0; s < n; s++) {                       // velocity Verlet
+    P.x += P.vx * dt + 0.5 * ax * dt * dt;
+    P.y += P.vy * dt + 0.5 * ay * dt * dt;
+    const [bx, by] = accel(P.x, P.y);
+    P.vx += 0.5 * (ax + bx) * dt; P.vy += 0.5 * (ay + by) * dt;
+    ax = bx; ay = by; P.t += dt;
+    const st = checkStop();
+    if (st) { P.alive = false; P.status = st; break; }
+  }
+  const last = trail[trail.length - 1];
+  if (!last || Math.hypot(P.x - last[0], P.y - last[1]) > S.L * 0.004) { trail.push([P.x, P.y]); if (trail.length > MAXT) trail.shift(); }
+}
+
+// ============================================================================
+// Number formatting
+// ============================================================================
+function fmt(x, d = 3) {
+  if (!isFinite(x)) return '—';
+  const ax = Math.abs(x);
+  if (ax === 0) return '0';
+  if (ax >= 1e5 || ax < 1e-3) { const e = Math.floor(Math.log10(ax)); return `${(x / 10 ** e).toFixed(2)}×10^${e}`; }
+  return x.toFixed(Math.max(0, d - 1 - Math.floor(Math.log10(ax))));
+}
+const fmtSigned = (x, d = 3) => (x > 0 ? '+' : '') + fmt(x, d);
+const SUP = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+const pretty = (s) => s.replace(/\^(-?\d+)/, (_, e) => [...e].map(c => SUP[c]).join(''));   // ×10^-5 → ×10⁻⁵
+const pf = (x, d) => pretty(fmt(x, d)), pfs = (x, d) => pretty(fmtSigned(x, d));
+const tex = (s) => s.replace(/×10\^(-?\d+)/, '\\times10^{$1}').replace('—', '\\text{—}');
+const texNum = (x, d = 3) => tex(fmt(x, d));
+const texSigned = (x, d = 3) => tex(fmtSigned(x, d));
+
+// ============================================================================
+// Panel: controls, live math, energy bars, notices
+// ============================================================================
+const $ = (id) => document.getElementById(id);
+function sliderRow(parent, { label, min, max, step, value, unit, onInput, signed }) {
+  const row = document.createElement('div');
+  row.className = 'ctl';
+  row.innerHTML = `<div class="ctl-top"><span class="ctl-label"></span><output></output></div><input type="range">`;
+  row.querySelector('.ctl-label').textContent = label;
+  const input = row.querySelector('input'), out = row.querySelector('output');
+  Object.assign(input, { min, max, step });
+  input.value = value;
+  const show = () => { out.textContent = `${signed ? pfs(+input.value) : pf(+input.value)} ${unit}`; };
+  input.addEventListener('input', () => { show(); onInput(+input.value); });
+  show();
+  parent.appendChild(row);
+  return { set(v) { input.value = v; show(); } };
+}
+
+let srcSliders = [];
+function buildControls() {
+  const sc = $('srcCtl'), tc = $('testCtl'), pr = $('presets');
+  sc.innerHTML = tc.innerHTML = pr.innerHTML = '';
+  srcSliders = S.sources.map((src, i) => sliderRow(sc, {
+    label: S.kind === 'uniform'
+      ? (S.mode === 'electric' ? 'plate voltage ΔV (top minus bottom)' : 'gravitational field strength g')
+      : `source ${i + 1}: ${U.srcSym === 'Q' ? 'charge' : 'mass'} ${U.srcSym}${S.sources.length > 1 ? i + 1 : ''}`,
+    min: U.srcMin, max: U.srcMax, step: U.srcStep, value: src.s, unit: U.srcUnit, signed: S.mode === 'electric',
+    onInput: (v) => { src.s = v; needsUpdate = true; },
+  }));
+  for (const [name, val] of S.presets || []) {
+    const b = Object.assign(document.createElement('button'), { className: 'b chip', textContent: `${name} (${val})` });
+    b.onclick = () => { S.sources[0].s = val; srcSliders[0].set(val); needsUpdate = true; };
+    pr.appendChild(b);
+  }
+  sliderRow(tc, { label: U.testName + (S.mode === 'gravity' ? ' (always positive)' : ''), min: U.testMin, max: U.testMax,
+    step: U.testStep, value: test, unit: U.testUnit, signed: S.mode === 'electric',
+    onInput: (v) => { test = v; needsUpdate = true; } });
+  if (U.inertia) sliderRow(tc, { label: U.inertia.name, min: U.inertia.min, max: U.inertia.max, step: U.inertia.step,
+    value: inertia, unit: U.inertia.unit, onInput: (v) => { inertia = v; } });
+  sliderRow(tc, { label: 'sideways launch speed (on the next drop)', min: 0, max: U.speedMax, step: U.speedStep,
+    value: launch, unit: U.speedUnit, onInput: (v) => { launch = v; } });
+  sliderRow(tc, { label: 'simulation speed', min: U.warp.min, max: U.warp.max, step: U.warp.step,
+    value: warp, unit: '× real time', onInput: (v) => { warp = v; } });
+}
+
+function loadScenario(idx, keepTest) {
+  const base = SCENARIOS[idx];
+  const modeChanged = !S || S.mode !== base.mode || (S.kind === 'uniform') !== (base.kind === 'uniform');
+  S = JSON.parse(JSON.stringify(base));
+  U = { ...MODES[S.mode], ...(S.override || {}) };
+  if (modeChanged || !keepTest) test = U.testDefault;
+  if (U.inertia && inertia === undefined) inertia = U.inertia.def;
+  launch = S.launch; warp = U.warp.def;
+  $('scenario').value = idx;
+  document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.mode === S.mode));
+  $('headerSub').textContent = S.mode === 'electric'
+    ? 'V = U/q is a property of the place · U = qV is a property of the charge'
+    : 'φ = U/m is a property of the place · U = mφ is a property of the mass';
+  buildMarkers(); buildControls();
+  needsUpdate = true;
+  updateLandscapes(); needsUpdate = false;
+  place(S.start.x, S.start.y);
+}
+
+function fillScenarioSelect(mode) {
+  const sel = $('scenario');
+  sel.innerHTML = '';
+  SCENARIOS.forEach((s, i) => { if (s.mode === mode) sel.add(new Option(s.name, i)); });
+}
+
+function bar(label, cls, val, unit) {
+  const w = energyScale ? Math.min(50, 50 * Math.abs(val) / energyScale) : 0;
+  const left = val >= 0 ? 50 : 50 - w;
+  return `<div class="bar"><span class="bl" style="color:var(--${cls})">${label}</span>
+    <div class="track"><div class="fill" style="left:${left}%;width:${w}%;background:var(--${cls})"></div><i></i></div>
+    <span class="bv">${pfs(val)} ${unit}</span></div>`;
+}
+
+function updatePanel() {
+  const q = testSI(), pot = potAt(P.x, P.y), [ex, ey] = fieldAt(P.x, P.y), fmag = Math.hypot(ex, ey);
+  const Ue = q * pot, v2 = P.vx * P.vx + P.vy * P.vy, K = 0.5 * inertiaSI() * v2, Etot = K + Ue;
+  const eD = U.energyDiv, pD = U.potDiv;
+  energyScale = Math.max(energyScale, Math.abs(K), Math.abs(Ue), Math.abs(Etot)) || 1;
+
+  // ---- live math ----
+  const potVal = `${texSigned(pot / pD)}\\ ${U.potTexUnit}`;
+  const testVal = `(${S.mode === 'electric' ? texSigned(test) : texNum(test)}\\ ${U.testTexUnit})`;
+  let lines = [];
+  if (S.kind === 'point') {
+    lines.push(S.mode === 'electric'
+      ? `V(\\vec r)=\\sum_i \\frac{kQ_i}{r_i} = ${potVal}`
+      : `\\varphi(\\vec r)=-\\sum_i \\frac{GM_i}{r_i} = ${potVal}`);
+  } else if (S.mode === 'electric') {
+    const yb = P.y + S.L, E = S.sources[0].s / (2 * S.L);
+    lines.push(`E = \\frac{\\Delta V}{d} = \\frac{${texSigned(S.sources[0].s)}\\ \\text{V}}{${texNum(2 * S.L)}\\ \\text{m}} = ${texSigned(E)}\\ \\text{V/m}`);
+    lines.push(`V = E\\,y = (${texSigned(E)}\\ \\text{V/m})(${texNum(yb)}\\ \\text{m}) = ${potVal}`);
+  } else {
+    const h = P.y + S.L;
+    lines.push(`\\varphi = g\\,h = (${texNum(S.sources[0].s)}\\ \\text{N/kg})(${texNum(h)}\\ \\text{m}) = ${potVal}`);
+  }
+  lines.push(`U = ${U.testTex}${U.potTex} = ${testVal}(${texSigned(pot / pD)}\\ ${U.potTexUnit}) = \\mathbf{${texSigned(Ue / eD)}\\ ${U.energyTex}}`);
+  lines.push(`K = \\tfrac12 m v^2 = ${texNum(K / eD)}\\ ${U.energyTex}`);
+  lines.push(`E = K + U = ${texSigned(Etot / eD)}\\ ${U.energyTex}`);
+  lines.push(S.mode === 'electric'
+    ? `\\vec F = q\\vec E = -\\nabla U,\\quad \\vec a = \\frac{q}{m}\\vec E`
+    : `\\vec F = m\\vec g = -\\nabla U,\\quad \\vec a = \\frac{m\\vec g}{m} = \\vec g`);
+  const fieldNote = S.mode === 'electric'
+    ? `|E| = ${pf(fmag)} N/C here (force per coulomb). |F| = |q||E| = ${pf(Math.abs(q) * fmag)} N.`
+    : `|g| = ${pf(fmag)} N/kg here. The mass cancels in a = F/m, so the path does not depend on m.`;
+  const el = $('math');
+  if (window.katex) {
+    el.innerHTML = lines.map(l => `<div class="row">${katex.renderToString(l, { displayMode: true, throwOnError: false })}</div>`).join('')
+      + `<div class="note">${fieldNote}</div>`;
+  } else {
+    el.textContent = lines.join('\n');
+  }
+
+  // ---- energy bars ----
+  $('bars').innerHTML = bar('K', 'k', K / eD, U.energyUnit) + bar('U', 'u', Ue / eD, U.energyUnit) + bar('E', 'e', Etot / eD, U.energyUnit);
+
+  // ---- 3-D value tags ----
+  probeLabel.element.innerHTML = `${U.potSym} = ${pfs(pot / pD)} ${U.potUnit}`;
+  particleLabel.element.innerHTML = `U = ${pfs(Ue / eD)} ${U.energyUnit}`;
+
+  // ---- what to notice ----
+  let msg;
+  if (S.mode === 'electric') {
+    if (q === 0) msg = '<b>q = 0:</b> the right landscape is perfectly flat, so no charge means no potential energy. The left landscape has not changed: <b>the potential is there whether or not a charge is.</b>';
+    else if (q < 0) msg = '<b>Negative test charge:</b> the right landscape is the left one <b>turned upside down</b> (U = qV with q &lt; 0). The particle rolls toward <b>higher V</b>, but, like everything, toward <b>lower U</b>.';
+    else msg = '<b>Positive test charge:</b> U has the same shape as V, scaled by q. Drag the q slider through zero and watch: <b>only the right landscape changes.</b> Then change the bead mass: same forces, different acceleration.';
+  } else {
+    msg = 'Mass is always positive, so U = mφ always has the <b>same shape</b> as φ. Unlike the electric case, it can never be flipped. Changing m stretches the U landscape, <b>but the motion doesn\'t change at all</b>: a = −∇U/m = −∇φ.';
+  }
+  $('notice').innerHTML = msg;
+
+  // ---- status line ----
+  const t = P.t / U.timeDiv;
+  $('status').innerHTML = `t = ${pf(t, 3)} ${U.timeUnit}` + (P.status ? ` · <b>${P.status}</b>: click a landscape to drop it again` : playing ? '' : ' · paused');
+}
+
+// ============================================================================
+// Pointer interaction: drag sources, click to drop the test object.
+// (Registered BEFORE OrbitControls so we can switch the controls off when a source is grabbed.)
+// ============================================================================
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let drag = null, down = null;
+function setRay(e) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+}
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  setRay(e);
+  down = { x: e.clientX, y: e.clientY, t: performance.now() };
+  if (S.kind !== 'point') return;
+  const hits = ray.intersectObjects(srcMarkers.flatMap(m => [m.V, m.U]));
+  if (hits.length) {
+    const o = hits[0].object;
+    drag = { index: o.userData.index, board: o.userData.board, plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -hits[0].point.y) };
+    controls.enabled = false;
+    renderer.domElement.setPointerCapture(e.pointerId);
+  }
+});
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!drag) {
+    setRay(e);
+    const over = S.kind === 'point' && ray.intersectObjects(srcMarkers.flatMap(m => [m.V, m.U])).length;
+    renderer.domElement.style.cursor = over ? 'grab' : '';
+    return;
+  }
+  setRay(e);
+  const pt = new THREE.Vector3();
+  if (!ray.ray.intersectPlane(drag.plane, pt)) return;
+  const lim = 0.94 * S.L;
+  const src = S.sources[drag.index];
+  const [bx, by] = toBoard(drag.board, pt);
+  src.x = Math.max(-lim, Math.min(lim, bx));
+  src.y = Math.max(-lim, Math.min(lim, by));
+  needsUpdate = true;
+});
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (drag) { drag = null; controls.enabled = true; return; }
+  if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6 || performance.now() - down.t > 500) return;
+  setRay(e);
+  const hit = ray.intersectObjects([surf.V, surf.U])[0];
+  if (!hit) return;
+  const board = hit.object === surf.V ? 'V' : 'U';
+  const [x, y] = toBoard(board, hit.point);
+  if (S.kind === 'point' && S.sources.some(s => Math.hypot(x - s.x, y - s.y) < 1.3 * S.R)) return;
+  place(Math.max(-S.L, Math.min(S.L, x)), Math.max(-S.L * 0.999, Math.min(S.L * 0.999, y)));
+});
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.6, 0.4);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.minDistance = 6;
+controls.maxDistance = 70;
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h); labels.setSize(w, h);
+  camera.aspect = w / h;
+  const nowStacked = camera.aspect < 1.15;
+  if (nowStacked !== stacked || !resize.done) {
+    stacked = nowStacked;
+    const g = stacked ? GAP + 0.9 : GAP;          // a little extra room between stacked boards for the title
+    OFF.V.set(stacked ? 0 : -g, 0, stacked ? -g : 0);
+    OFF.U.set(stacked ? 0 : g, 0, stacked ? g : 0);
+    surf.V.position.copy(OFF.V); surf.U.position.copy(OFF.U);
+    needsUpdate = true;
+    resize.done = true;
+  }
+  // frame both landscapes: side by side the pair is ~25 units wide; stacked it is ~11 wide and ~23 deep
+  const tanH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
+  controls.target.set(0, 0.6, stacked ? -0.3 : 0.4);
+  if (stacked) {
+    const d = Math.max(37, 8.8 / tanH);           // fit the depth of the stack vertically, and its width horizontally
+    camera.position.set(0, d * 0.86, d * 0.51).add(controls.target);
+  } else {
+    const d = Math.max(19, 13.6 / tanH);
+    camera.position.set(0, d * 0.62, d * 0.79).add(controls.target);
+  }
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+
+// ---- panel wiring ----
+document.querySelectorAll('#modeSeg button').forEach(b => b.addEventListener('click', () => {
+  if (b.dataset.mode === S.mode) return;
+  fillScenarioSelect(b.dataset.mode);
+  loadScenario(SCENARIOS.findIndex(s => s.mode === b.dataset.mode));
+}));
+$('scenario').addEventListener('change', (e) => loadScenario(+e.target.value, true));
+$('play').addEventListener('click', () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; });
+$('reset').addEventListener('click', () => place(S.start.x, S.start.y));
+$('optContours').addEventListener('change', () => { needsUpdate = true; });
+$('optArrows').addEventListener('change', (e) => { arrows.V.visible = arrows.U.visible = e.target.checked; });
+$('optTrail').addEventListener('change', (e) => { trailLine.visible = e.target.checked; });
+
+// ============================================================================
+// Main loop
+// ============================================================================
+const clock = new THREE.Clock();
+let panelTimer = 0;
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.1);
+  if (needsUpdate) { updateLandscapes(); needsUpdate = false; }
+  simulate(dt);
+
+  const hU = heightU(P.x, P.y), hV = heightV(P.x, P.y);
+  particle.position.copy(toWorld('U', P.x, P.y, hU + 0.2));
+  probe.position.copy(toWorld('V', P.x, P.y, hV + 0.3));
+  const arr = trailLine.geometry.attributes.position.array;
+  trail.forEach(([x, y], i) => { const w = toWorld('U', x, y, heightU(x, y) + 0.05); arr[3 * i] = w.x; arr[3 * i + 1] = w.y; arr[3 * i + 2] = w.z; });
+  trailLine.geometry.setDrawRange(0, trail.length);
+  trailLine.geometry.attributes.position.needsUpdate = true;
+
+  panelTimer -= dt;
+  if (panelTimer <= 0) { updatePanel(); panelTimer = 0.12; }
+  controls.update();
+  renderer.render(scene, camera);
+  labels.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+fillScenarioSelect('electric');
+resize();
+const start = () => { loadScenario(0); frame(); };
+if (window.katex) start(); else window.addEventListener('load', start);
+</script>
+</body>
+</html>
